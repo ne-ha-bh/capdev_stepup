@@ -9,8 +9,7 @@ from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils.timezone import make_aware
 
-# def convert_to_datetime(date_str):
-#     return datetime.strptime(date_str, '%A, %b %d %Y at %I:%M %p').strftime('%Y-%m-%d %H:%M:%S')
+
 def convert_to_datetime(date_str):
     naive_datetime = datetime.strptime(date_str, '%A, %b %d %Y at %I:%M %p')
     return make_aware(naive_datetime)
@@ -50,7 +49,11 @@ def upload_data(request):
         submitted_date = convert_to_datetime(row['Submitted Date']) if pd.notna(row['Submitted Date']) else None
         cn_rating = row['CN rating'] if pd.notna(row['CN rating']) else None
         submitted_reason = row['Submitted reason'] if 'Submitted reason' in df.columns and pd.notna(row['Submitted reason']) else None
-        # appeared_in_test = row['Appeared in test'] if 'Appeared in test' in df.columns and pd.notna(row['Appeared in test']) else None
+        appeared_in_test = (
+                True if row['Appeared in test'].strip().lower() == 'yes' 
+                else False if row['Appeared in test'].strip().lower() == 'no' 
+                else None
+            ) if 'Appeared in test' in df.columns and pd.notna(row['Appeared in test']) else None
 
         attempt_no = extract_attempt_no(test_name)
         print(f"attempt_no: {attempt_no}")
@@ -71,7 +74,7 @@ def upload_data(request):
             print(f"Saved attempt_no in DB: {attempt.attempt_no}")
             
             print(f"Creating TestResult for participant: {participant}, batch: {batch}, subject: {subject}, level: {level}, attempt: {attempt}")
-            # print(f"invite_time: {invite_time}, test_status: {test_status}, submitted_date: {submitted_date}, cn_rating: {cn_rating}, appeared_in_test: {appeared_in_test}, submitted_reason: {submitted_reason}, test_name: {test_name}")
+            print(f"invite_time: {invite_time}, test_status: {test_status}, submitted_date: {submitted_date}, cn_rating: {cn_rating}, appeared_in_test: {appeared_in_test}, submitted_reason: {submitted_reason}, test_name: {test_name}")
             TestResult.objects.create(
                 participant=participant,
                 batch=batch,
@@ -82,7 +85,7 @@ def upload_data(request):
                 test_status=test_status,
                 submitted_date=submitted_date,
                 cn_rating=cn_rating,
-                #appeared_in_test=appeared_in_test,
+                appeared_in_test=appeared_in_test,
                 submitted_reason=submitted_reason, test_name=test_name
             )
 
