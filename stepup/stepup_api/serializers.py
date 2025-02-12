@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Participant, Batch, Level, Subject, Attempt, TestResult
+from .models import Participant, Batch, Subject, Level, Attempt, TestResult, User
 
 class ParticipantSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,14 +11,14 @@ class BatchSerializer(serializers.ModelSerializer):
         model = Batch
         fields = '__all__'
 
-class LevelSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Level
-        fields = '__all__'
-
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
+        fields = '__all__'
+
+class LevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Level
         fields = '__all__'
 
 class AttemptSerializer(serializers.ModelSerializer):
@@ -29,4 +29,9 @@ class AttemptSerializer(serializers.ModelSerializer):
 class TestResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = TestResult
+        fields = '__all__'
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
         fields = '__all__'

@@ -1,19 +1,24 @@
+import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db import transaction
 from .models import Participant, Batch, Level, Subject, Attempt, TestResult
 import pandas as pd
 from datetime import datetime
+from django.db.models import Count, Q
+from django.http import JsonResponse
+from django.utils.timezone import make_aware
 
+# def convert_to_datetime(date_str):
+#     return datetime.strptime(date_str, '%A, %b %d %Y at %I:%M %p').strftime('%Y-%m-%d %H:%M:%S')
 def convert_to_datetime(date_str):
-    return datetime.strptime(date_str, '%A, %b %d %Y at %I:%M %p').strftime('%Y-%m-%d %H:%M:%S')
-
+    naive_datetime = datetime.strptime(date_str, '%A, %b %d %Y at %I:%M %p')
+    return make_aware(naive_datetime)
 def extract_attempt_no(test_name):
-    parts = test_name.split('-')
-    for part in parts:
-        if 'Attempt' in part:
-            return part.strip()
-    return None
+    match = re.search(r'Attempt\s[1-3](?:\s|$)', test_name)
+    attempt_no = match.group(0).strip() if match else None
+    print(f"Extracted attempt_no: {attempt_no} from test_name: {test_name}")
+    return attempt_no
 
 @api_view(['POST'])
 def upload_data(request):
@@ -45,9 +50,10 @@ def upload_data(request):
         submitted_date = convert_to_datetime(row['Submitted Date']) if pd.notna(row['Submitted Date']) else None
         cn_rating = row['CN rating'] if pd.notna(row['CN rating']) else None
         submitted_reason = row['Submitted reason'] if 'Submitted reason' in df.columns and pd.notna(row['Submitted reason']) else None
-        appeared_in_test = row['Appeared in test'] if 'Appeared in test' in df.columns and pd.notna(row['Appeared in test']) else None
+        # appeared_in_test = row['Appeared in test'] if 'Appeared in test' in df.columns and pd.notna(row['Appeared in test']) else None
 
         attempt_no = extract_attempt_no(test_name)
+        print(f"attempt_no: {attempt_no}")
 
         with transaction.atomic():
             # Check if participant exists, if yes, update; if not, create
@@ -56,16 +62,28 @@ def upload_data(request):
             participant.mobile = mobile
             participant.primary_skill = primary_skill
             participant.save()
-            
+            print(f"Participant: {participant}")
+
             batch, _ = Batch.objects.get_or_create(batch_no=batch_no)
             subject, _ = Subject.objects.get_or_create(subject_name=subject_name)
             level, _ = Level.objects.get_or_create(level_no=level_no)
             attempt, _ = Attempt.objects.get_or_create(attempt_no=attempt_no)
-
+            print(f"Saved attempt_no in DB: {attempt.attempt_no}")
+            
+            print(f"Creating TestResult for participant: {participant}, batch: {batch}, subject: {subject}, level: {level}, attempt: {attempt}")
+            # print(f"invite_time: {invite_time}, test_status: {test_status}, submitted_date: {submitted_date}, cn_rating: {cn_rating}, appeared_in_test: {appeared_in_test}, submitted_reason: {submitted_reason}, test_name: {test_name}")
             TestResult.objects.create(
-                participant=participant, batch=batch, subject=subject, level=level, attempt=attempt,
-                invite_time=invite_time, test_status=test_status, submitted_date=submitted_date,
-                cn_rating=cn_rating, appeared_in_test=appeared_in_test, submitted_reason=submitted_reason, test_name=test_name
+                participant=participant,
+                batch=batch,
+                subject=subject,
+                level=level,
+                attempt=attempt,
+                invite_time=invite_time,
+                test_status=test_status,
+                submitted_date=submitted_date,
+                cn_rating=cn_rating,
+                #appeared_in_test=appeared_in_test,
+                submitted_reason=submitted_reason, test_name=test_name
             )
 
     return Response({'message': 'Data uploaded successfully'}, status=200)
