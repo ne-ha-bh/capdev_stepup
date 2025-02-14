@@ -48,9 +48,9 @@ class TestResult(models.Model):
     test_status = models.CharField(max_length=255, null=True, db_column='TestStatus')
     submitted_date = models.DateTimeField(null=True, db_column='SubmittedDate')
     cn_rating = models.FloatField(null=True, db_column='CNRating')
-    appeared_in_test = models.BooleanField(null=True, db_column='AppearedInTest')
-    submitted_reason = models.CharField(max_length=255, null=True)
-    test_name = models.CharField(max_length=255)
+    appeared_in_test = models.BooleanField(null=True, db_column='AppearedInTest') 
+    submitted_reason = models.CharField(max_length=255, null=True, db_column='SubmittedReason')  
+    test_name = models.CharField(max_length=255, null=True, db_column='TestName') 
 
     class Meta:
         db_table = 'test_results'
