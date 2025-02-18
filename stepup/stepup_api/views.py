@@ -5,12 +5,12 @@ from django.db import transaction
 from .models import Participant, Batch, Level, Subject, Attempt, TestResult
 import pandas as pd
 from datetime import datetime
-from django.db.models import Case, Q, Subquery, OuterRef, IntegerField, When
-from django.db.models import Count, Max, Min, F, Q, Sum
+from django.db.models import Case, Q, Subquery, IntegerField, When, Count, Max, Min, Q, Sum
 from django.http import JsonResponse
 from django.utils.timezone import make_aware
 from django.db import connection
 import logging
+
 
 logger = logging.getLogger('django')
 def convert_to_datetime(date_str):
@@ -103,115 +103,135 @@ def get_dashboard1_data(request):
     subjects = ['Core Software Engineering', 'Prompt Engineering', 'Core Software Engineering Coding Skills']
 
     # Invite Count Query for Level 1
-    invite_count_results_level1 = get_invite_count_results("Level1")
-    # expected result of above query
-    #     [
-    #     {'batch_id__batch_no': 'Batch1', 'level_id__level_no': 'Level1', 'InviteCount': 10},
-    #     {'batch_id__batch_no': 'Batch2', 'level_id__level_no': 'Level1', 'InviteCount': 15},
-    # ]
-
+    invite_count_results_level1 = get_invite_count_results("Level 1")
+    
     # Invite Count Query for Level 2
-    invite_count_results_level2 = get_invite_count_results("Level2") 
-    # {'batch_id__batch_no': 'Batch1', 'level_id__level_no': 'Level2', 'InviteCount': 8},
-    # {'batch_id__batch_no': 'Batch2', 'level_id__level_no': 'Level2', 'InviteCount': 12},
-    # ]
+    invite_count_results_level2 = get_invite_count_results("Level 2")
 
 
     # Passed Count Query for Level 1
-    # Get the count of distinct subjects matching the required names
-    subject_count_subquery = Subject.objects.filter(SubjectName__in=subjects).distinct().count()
+    subject_count_subquery = Subject.objects.filter(subject_name__in=subjects).distinct().count()
 
     # Get participants who passed all required subjects with cn_rating > 4.0
-    qualified_participants_subquery = TestResult.objects.filter(level_id__level_no="Level1",
-                    cn_rating__gt=4.0, participant_id=OuterRef("participant_id") \
-                ).values("participant_id").annotate(subject_count=Count("subject_id", distinct=True)
-                ).filter(subject_count=subject_count_subquery).values("participant_id")
+    qualified_participants_subquery = TestResult.objects.filter(level_id__level_no="Level 1",
+                    cn_rating__gt=4.0, subject_id__subject_name__in=subjects).values("participant_id").annotate(\
+                    passed_subject_count=Count("subject_id", distinct=True)).filter( \
+                    passed_subject_count=subject_count_subquery).values_list("participant_id", flat=True)
+    
+    print("qualified_participants_subquery = ",qualified_participants_subquery)
 
     # Main query to count distinct participants per batch
     passed_count_results_level1 = Participant.objects.filter(
                     participant_id__in=Subquery(qualified_participants_subquery),
-                    testresults__level_id__level_no="Level1",
-                    testresults__cn_rating__gt=4.0) \
-                .values("testresults__batch_id__batch_no")  \
+                    testresult__level_id__level_no="Level 1",
+                    testresult__cn_rating__gt=4.0) \
+                .values("testresult__batch_id__batch_no")  \
                 .annotate(ParticipantCount=Count("participant_id", distinct=True)) \
-                .order_by("testresults__batch_id__batch_no")
+                .order_by("testresult__batch_id__batch_no")
     
+    print("passed_count_results_level1 == ",passed_count_results_level1)
 
     # Passed Count Query for Level 2
     passed_count_results_level2 = Participant.objects.filter(
-            testresults__level_id__level_no="Level2", 
-            testresults__cn_rating__gte=4).\
-        values("testresults__batch_id__batch_no") \
+            testresult__level_id__level_no="Level 2", 
+            testresult__cn_rating__gte=4).\
+        values("testresult__batch_id__batch_no") \
         .annotate(ParticipantCount=Count("participant_id", distinct=True)) \
-        .order_by("testresults__batch_id__batch_no")
+        .order_by("testresult__batch_id__batch_no")
     
 
     # Failed Count Query for Level 1
     failed_count_results_level1 = Participant.objects.filter(
-            testresults__level_id__level_no="Level1",
-            testresults__cn_rating__lt=4.0,
-            testresults__attempt_id__attempt_no="Attempt3").\
-        values("testresults__batch_id__batch_no") \
+            testresult__level_id__level_no="Level 1",
+            testresult__cn_rating__lt=4.0,
+            testresult__attempt_id__attempt_no="Attempt 3").\
+        values("testresult__batch_id__batch_no") \
         .annotate(ParticipantCount=Count("participant_id", distinct=True)) \
-        .order_by("testresults__batch_id__batch_no")
+        .order_by("testresult__batch_id__batch_no")
 
 
     # Failed Count Query for Level 2
     failed_count_results_level2 = Participant.objects.filter(
-            testresults__level_id__level_no="Level2", 
-            testresults__attempt_id__attempt_no="Attempt3",  
-            testresults__cn_rating__lt=4) \
-        .values("testresults__batch_id__batch_no")  \
+            testresult__level_id__level_no="Level 2", 
+            testresult__attempt_id__attempt_no="Attempt 3",  
+            testresult__cn_rating__lt=4) \
+        .values("testresult__batch_id__batch_no")  \
         .annotate(ParticipantCount=Count("participant_id", distinct=True)) \
-        .order_by("testresults__batch_id__batch_no")
+        .order_by("testresult__batch_id__batch_no")
 
    
     # In-Progress Count Query for Level 1
     
     # Get emails of passed candidates
     passed_candidates = Participant.objects.filter(
-                testresults__level_id__level_no="Level1",
-                testresults__subject_id__SubjectName__in=subjects,
-                testresults__cn_rating__gte=4,
-                testresults__appeared_in_test=True
-            ).values("Email").annotate(subject_count=Count("testresults__subject_id", distinct=True)) \
+                testresult__level_id__level_no="Level 1",
+                testresult__subject_id__subject_name__in=subjects,
+                testresult__cn_rating__gte=4,
+                testresult__appeared_in_test=True
+            ).values("email").annotate(subject_count=Count("testresult__subject_id", distinct=True)) \
             .filter(subject_count=3)  
     
+    print("passed_candidates = ",passed_candidates)
+
+
     # Get emails of failed candidates
     failed_candidates = Participant.objects.filter(
-            testresults__level_id__level_no="Level1",
-            testresults__subject_id__subject_name__in=subjects,
-            testresults__attempt_id__attempt_no="Attempt3",
-            testresults__cn_rating__lt=4,
-            testresults__appeared_in_test=True
-        ).values("Email")
+            testresult__level_id__level_no="Level 1",
+            testresult__subject_id__subject_name__in=subjects,
+            testresult__attempt_id__attempt_no="Attempt 3",
+            testresult__cn_rating__lt=4.0,
+            testresult__appeared_in_test=True
+        ).values("email")
 
-    # Main Query: Find in-progress candidates
+    print("failed_candidates == ",failed_candidates)
+
+    exclusions = []
+    if passed_candidates.exists():
+        exclusions.append(Subquery(passed_candidates))
+    if failed_candidates.exists():
+        exclusions.append(Subquery(failed_candidates))
+
     in_progress_count_results_level1 = Participant.objects.filter(
-                testresults__level_id__level_no="Level1",
-                testresults__subject_id__subject_name__in=subjects,
-                testresults__appeared_in_test=True
-            ).exclude(Email__in=Subquery(passed_candidates)) \
-            .exclude(Email__in=Subquery(failed_candidates))  \
-            .values("testresults__batch_id__batch_no", "testresults__level_id__level_no") \
+                testresult__level_id__level_no="Level 1",
+                testresult__subject_id__subject_name__in=subjects,
+                testresult__appeared_in_test=True
+            )
+
+    for exclusion in exclusions:
+        in_progress_count_results_level1 = in_progress_count_results_level1.exclude(email__in=exclusion)
+
+    in_progress_count_results_level1 = in_progress_count_results_level1.values(
+            "testresult__batch_id__batch_no", "testresult__level_id__level_no") \
             .annotate(InProgressCount=Count("participant_id", distinct=True)) \
-            .order_by("testresults__batch_id__batch_no", "testresults__level_id__level_no")
+            .order_by("testresult__batch_id__batch_no", "testresult__level_id__level_no")
     
+    print("in_progress_count_results_level1 = ",in_progress_count_results_level1)
+
 
     # In-Progress Count Query for Level 2
     # Get participants who are either passed (cn_rating >= 4) OR failed in Attempt 3 (cn_rating < 4)
-    excluded_participants = TestResult.objects.filter(level_id__level_no="Level2").filter(
-                    Q(cn_rating__gte=4) | Q(attempt_id__attempt_no="Attempt3", cn_rating__lt=4)
+    excluded_participants = TestResult.objects.filter(level_id__level_no="Level 2").filter(
+                    Q(cn_rating__gte=4) | Q(attempt_id__attempt_no="Attempt 3", cn_rating__lt=4.0)
                 ).values("participant_id")
 
     # Main Query: Find in-progress candidates
     in_progress_count_results_level2 = Participant.objects.filter(
-                    testresults__level_id__level_no="Level2"
+                    testresult__level_id__level_no="Level 2"
                 ).exclude(participant_id__in=Subquery(excluded_participants)) \
-                .values("testresults__batch_id__batch_no") \
+                .values("testresult__batch_id__batch_no") \
                 .annotate(ParticipantCount=Count("participant_id", distinct=True))  \
-                .order_by("testresults__batch_id__batch_no")
+                .order_by("testresult__batch_id__batch_no")
 
+    print(f'''
+            invite_count_results_level1 = {invite_count_results_level1},
+            passed_count_results_level1 = {passed_count_results_level1},
+            failed_count_results_level1 = {failed_count_results_level1},
+            in_progress_count_results_level1 = {in_progress_count_results_level1},
+            invite_count_results_level2 = {invite_count_results_level2},
+            passed_count_results_level2 = {passed_count_results_level2},
+            failed_count_results_level2 = {failed_count_results_level2},
+            in_progress_count_results_level2 = {in_progress_count_results_level2}
+    ''')
 
     response = {
         "level1": {
@@ -230,23 +250,20 @@ def get_dashboard1_data(request):
 
     return Response(response)
  
-
 def get_invite_count_results(level):
-    # expected result of above query
-    #     [{batch_id__batch_no': 'Batch1', 'level_id__level_no': 'Level1', 'InviteCount': 10},
-    #     {'batch_id__batch_no': 'Batch2', 'level_id__level_no': 'Level1', 'InviteCount': 15},
-    # ]
-
     result = TestResult.objects.filter(level_id__level_no=level) \
                     .values("batch_id__batch_no", "level_id__level_no") \
                     .annotate(InviteCount=Count("participant_id", distinct=True)) \
                     .order_by("batch_id__batch_no", "level_id__level_no")
+    
     return result
 
 def get_dashboard2_data(request):
-    batch_number = request.args.get('batch_number')
-    level_id = request.args.get('level_id')
 
+    data = []
+    results = []
+    batch_number = request.GET.get('batch_number')
+    level_id = request.GET.get('level_id')
     if not batch_number or not level_id:
         return JsonResponse({'error': 'Missing required parameters'}, status=400)
     
@@ -255,40 +272,38 @@ def get_dashboard2_data(request):
     except Batch.DoesNotExist:
         return JsonResponse({'error': 'Invalid batch_id'}, status=400)
 
-    results = TestResult.objects.filter(batch_id=batch_id_query, level_id=level_id) \
-        .values("subject_id__subject_name", "attempt_id__attempt_no") \
-        .annotate(TotalInvitations=Count("participant_id", distinct=True),
-            TotalAppeared=Sum(Case(When(appeared_in_test=1, then=1), default=0, output_field=IntegerField())),
-            TotalPass=Sum(Case(When(cn_rating__gte=4.0, then=1), default=0, output_field=IntegerField())),
-            TotalFail=Sum(Case(
-                    When(cn_rating__lt=4.0, appeared_in_test=1, then=1),
-                    default=0,
-                    output_field=IntegerField(),
-                )
-            ),
-            TotalInProgress=Sum(
-                Case(
+    try:
+        results = TestResult.objects.filter(batch_id=batch_id_query, level_id=level_id) \
+            .values("subject_id__subject_name", "attempt_id__attempt_no") \
+            .annotate(TotalInvitations=Count("participant_id", distinct=True),
+                TotalAppeared=Sum(Case(When(appeared_in_test=1, then=1), default=0, output_field=IntegerField())),
+                TotalPass=Sum(Case(When(cn_rating__gte=4.0, then=1), default=0, output_field=IntegerField())),
+                TotalFail=Sum(Case(
+                        When(cn_rating__lt=4.0, appeared_in_test=1, then=1),
+                        default=0, output_field=IntegerField(),
+                    )
+                ),
+                TotalInProgress=Sum(Case(
                     When(appeared_in_test=1, cn_rating=None, then=1),
-                    default=0,
-                    output_field=IntegerField(),
-                )
-            ),
-        )\
-        .order_by("subject_id__subject_name", "attempt_id__attempt_no")
-
-    data = []
-    for row in results:
-        data.append({
-            'SubjectName': row.subject_name,
-            'AttemptName': row.attempt_no,
-            'TotalInvitations': row.TotalInvitations,
-            'TotalAppeared': row.TotalAppeared,
-            'TotalPass': row.TotalPass,
-            'TotalFail': row.TotalFail,
-            'TotalInProgress': row.TotalInProgress
-        })
+                    default=0, output_field=IntegerField(),
+                    )),
+            ).order_by("subject_id__subject_name", "attempt_id__attempt_no")
     
-    return JsonResponse({'data': data}, status=200)
+        for row in results:
+            data.append({
+                'SubjectName': row.get('subject_id__subject_name'),
+                'AttemptName': row.get('attempt_id__attempt_no'),
+                'TotalInvitations': row.get('TotalInvitations'),
+                'TotalAppeared': row.get('TotalAppeared'),
+                'TotalPass': row.get('TotalPass'),
+                'TotalFail': row.get('TotalFail'),
+                'TotalInProgress': row.get('TotalInProgress')
+            })
+        status = 200
+    except Exception:
+        print("Unable to fetch data for dashboard 2 ")
+        status = 400
+    return JsonResponse({'data': data}, status=status)
     
 
 def user_details(request):
