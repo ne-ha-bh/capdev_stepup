@@ -93,6 +93,103 @@ def upload_data(request):
 
     return Response({'message': 'Data uploaded successfully'}, status=200)
 
+# def user_details(request):
+#     email = request.GET.get('email')
+#     if not email:
+#         return JsonResponse({'error': 'Missing required parameters'}, status=400)
+
+#     try:
+#         participant = Participant.objects.get(email=email)
+#     except Participant.DoesNotExist:
+#         return JsonResponse({'message': 'User not found!'}, status=404)
+
+#     level_details = {}
+
+#     def get_level_details(level_no):
+#         results = TestResult.objects.filter(
+#             participant__email=email,
+#             level__level_no=level_no
+#         ).values(
+#             'participant__name',
+#             'participant__email',
+#             'subject__subject_name',
+#             'batch__batch_no'
+#         ).annotate(
+#             TotalInvites=Count('test_result_id'),
+#             LastInviteDate=Max('invite_time'),
+#             FirstInviteDate=Min('invite_time')
+#         ).order_by('-LastInviteDate')
+
+#         level_test_details = []
+#         for result in results:
+#             detail = {
+#                 'ParticipantName': result['participant__name'],
+#                 'Email': result['participant__email'],
+#                 'SubjectName': result['subject__subject_name'],
+#                 'BatchNo': result['batch__batch_no'],
+#                 'TotalInvites': result['TotalInvites'],
+#                 'LastInvited': result['LastInviteDate'],
+#                 'StartDate': result['FirstInviteDate'],
+#             }
+
+#             passed_count = TestResult.objects.filter(
+#                 participant__email=email,
+#                 level__level_no=level_no,
+#                 cn_rating__gte=4
+#             ).count()
+
+#             if passed_count:
+#                 detail['TestStatus'] = 'Passed'
+#                 detail['InviteForNextLevel'] = 'No'
+#                 detail['InviteDate'] = None
+#             else:
+#                 detail['TestStatus'] = 'Failed'
+
+#                 next_level_no = {
+#                     'Level1': 'Level2',
+#                     'Level2': 'Level3',
+#                     'Level3': 'Level4',
+#                     'Level4': 'Level5'
+#                 }.get(level_no)
+
+#                 next_level_invite_date = TestResult.objects.filter(
+#                     participant__email=email,
+#                     level__level_no=next_level_no
+#                 ).aggregate(Min('invite_time'))['invite_time__min']
+
+#                 if next_level_invite_date:
+#                     detail['InviteForNextLevel'] = 'Yes'
+#                     detail['InviteDate'] = next_level_invite_date
+#                 else:
+#                     detail['InviteForNextLevel'] = 'No'
+#                     detail['InviteDate'] = None
+
+#             level_test_details.append(detail)
+
+#         return level_test_details
+
+#     level_details['Level 1'] = get_level_details('Level 1')
+#     level_details['Level 2'] = get_level_details('Level 2')
+
+#     overall_status = 'Failed'
+#     for level in level_details.values():
+#         for detail in level:
+#             if detail['TestStatus'] == 'Passed':
+#                 overall_status = 'Passed'
+#                 break
+#     if level_details['Level 2']:
+#         for detail in level_details['Level 1']:
+#             detail['InviteForNextLevel'] = 'Yes'
+#     return JsonResponse({
+#         'participant': participant.name,
+#         'test_status': overall_status,
+#         'details': level_details
+#     }, status=200)
+
+from django.http import JsonResponse
+from django.db.models import Count, Max, Min
+from .models import Participant, TestResult
+
 def user_details(request):
     email = request.GET.get('email')
     if not email:
@@ -168,8 +265,9 @@ def user_details(request):
 
         return level_test_details
 
-    level_details['Level 1'] = get_level_details('Level 1')
-    level_details['Level 2'] = get_level_details('Level 2')
+    # Fetch details in decreasing order of levels
+    level_details['Level 2'] = get_level_details('Level2')
+    level_details['Level 1'] = get_level_details('Level1')
 
     overall_status = 'Failed'
     for level in level_details.values():
@@ -177,11 +275,14 @@ def user_details(request):
             if detail['TestStatus'] == 'Passed':
                 overall_status = 'Passed'
                 break
+
     if level_details['Level 2']:
         for detail in level_details['Level 1']:
             detail['InviteForNextLevel'] = 'Yes'
+
     return JsonResponse({
         'participant': participant.name,
+        'primary_skill': participant.primary_skill,
         'test_status': overall_status,
         'details': level_details
     }, status=200)
