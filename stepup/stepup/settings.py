@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -82,7 +83,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'Django_TestResultsDB',
         'USER': 'stepup',
-        'PASSWORD': 'India@1234',
+        'PASSWORD': 'India#1234',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -109,9 +110,14 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
-
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -133,3 +139,17 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+]
+
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your email provider's SMTP server
+EMAIL_PORT = 587  # Or your email provider's SMTP port
+EMAIL_USE_TLS = True  # Or EMAIL_USE_SSL = True if your provider uses SSL
+EMAIL_HOST_USER = 'b.1094neha@gmail.com'  # Replace with your email address
+EMAIL_HOST_PASSWORD = 'Nbharti19$'  # Replace with your email password or app password
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER #replace with your email.

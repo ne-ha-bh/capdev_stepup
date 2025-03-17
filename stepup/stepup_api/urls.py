@@ -1,18 +1,23 @@
 from django.urls import path
-from .views import upload_data, user_details, get_participant_details,\
-    get_candidates_in_progress, get_fail_candidates, get_pass_candidates,\
-    get_total_invites, get_dashboard1_data, get_dashboard2_data
-
+from .views import upload_data, get_dashboard_data ,batch_role_summary, learner_detail, get_batches, get_levels, get_statuses ,download_file, get_latest_uploads, login, participant_data, send_query, manage_participants,get_participants, create_role, get_roles, create_user, get_users
 urlpatterns = [
     path('upload', upload_data, name='upload_data'),
-    path('dashboard1', get_dashboard1_data, name='get_dashboard1_data'),
-    path('get_dashboard2_data', get_dashboard2_data, name="get_dashboard2_data"),
-    path('user-details', user_details, name='user_details'),
-    path('participant-details', get_participant_details, name='get_participant_details'),
-    path('in-progress-candidate', get_candidates_in_progress, name='get_candidates_in_progress'),
-    path('fail-candidates', get_fail_candidates, name='get_fail_candidates'),
-    path('pass-candidates', get_pass_candidates, name='get_pass_candidates'),
-    path('invited-candidates', get_total_invites, name='get_total_invites'),
-    path('dashboard1', get_dashboard1_data, name='get_dashboard1_data'),
-    path('get_dashboard2_data', get_dashboard2_data, name="get_dashboard2_data"),
-]
+    path('dashboard', get_dashboard_data, name='get_dashboard_data'),
+    path('batch_role', batch_role_summary, name='batch_role_summary'),
+    path('learner_detail', learner_detail, name='learner_detail'),
+    path('get_batches', get_batches, name='get_batches'),
+    path('get_levels', get_levels, name='get_levels'),
+    path('get_statuses', get_statuses, name='get_statuses'),
+    path('download_file/<int:file_id>', download_file, name='download_file'),
+    path('get_latest_uploads', get_latest_uploads, name='get_latest_uploads'),
+    path('login', login, name='login'),
+    path('manage_participants', manage_participants, name='manage_participants'),
+    path('participant_data/', participant_data, name='participant_data'),
+    path('send_query', send_query, name='send_query'),
+    path('get_participants', get_participants, name= 'get_participants'),
+    path('create_role', create_role, name= 'create_role'),
+    path('get_roles', get_roles, name= 'get_roles'),
+    path('create_user', create_user, name= 'create_user'),
+    path('get_users', get_users, name= 'get_users'),
+
+    ]

@@ -29,6 +29,14 @@ class Subject(models.Model):
     class Meta:
         db_table = 'subjects'
 
+class Role(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        db_table = 'role'
 class Participant(models.Model):
     participant_id = models.AutoField(primary_key=True, db_column='ParticipantID')  # Primary key
     name = models.CharField(max_length=255, db_column='Name')
@@ -75,13 +83,39 @@ class TestResult(models.Model):
     class Meta:
         db_table = 'test_results'
 
+# class User(models.Model):
+#     id = models.AutoField(primary_key=True)
+#     name = models.CharField(max_length=100)
+#     email = models.EmailField(unique=True)
+#     password = models.CharField(max_length=255)
+#     created_date = models.DateTimeField(default=timezone.now())
+#     updated_date = models.DateTimeField(default=timezone.now())
+
+#     class Meta:
+#         db_table = 'users'
+
 class User(models.Model):
-    id = models.AutoField(primary_key=True)  # Primary Key
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True)
     password = models.CharField(max_length=255)
-    created_date = models.DateTimeField(default=timezone.now())
-    updated_date = models.DateTimeField(default=timezone.now())
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.CASCADE,
+        related_name="users"
+    )
+    created_date = models.DateTimeField(default=timezone.now)
+    updated_date = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'users'
+
+class UploadedFile(models.Model):
+    file_name = models.CharField(max_length=255)
+    upload_time = models.DateTimeField(default=timezone.now)
+    file = models.FileField(upload_to='uploaded_sheets/')
+
+    def __str__(self):
+        return self.file_name
+    class Meta:
+        db_table = 'upload'
